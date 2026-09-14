@@ -1429,11 +1429,28 @@ elif page == "🌎 City Comparison":
 
             st.markdown('<div class="section-title">🌦️ Weather Response</div>', unsafe_allow_html=True)
             scatter = cmp[[weather_metric, TARGET, "City"]].dropna()
+            # Draw OLS trend lines manually so the app does not depend on
+            # statsmodels (Plotly Express requires it for trendline="ols").
             fig = px.scatter(
                 scatter, x=weather_metric, y=TARGET, color="City",
-                trendline="ols", opacity=.38, title=f"{weather_metric} vs Demand",
+                opacity=.38, title=f"{weather_metric} vs Demand",
                 color_discrete_sequence=[CITY_COLORS["Seoul"], CITY_COLORS["Washington DC"]],
             )
+            for city_name in ("Seoul", "Washington DC"):
+                city_data = scatter[scatter["City"].eq(city_name)][[weather_metric, TARGET]].dropna()
+                if len(city_data) >= 2 and city_data[weather_metric].nunique() >= 2:
+                    x = city_data[weather_metric].to_numpy(dtype=float)
+                    y = city_data[TARGET].to_numpy(dtype=float)
+                    slope, intercept = np.polyfit(x, y, 1)
+                    x_line = np.linspace(x.min(), x.max(), 80)
+                    y_line = slope * x_line + intercept
+                    fig.add_trace(
+                        go.Scatter(
+                            x=x_line, y=y_line, mode="lines", name=f"{city_name} trend",
+                            line={"color": CITY_COLORS[city_name], "width": 3},
+                            showlegend=True,
+                        )
+                    )
             style_chart(fig, 450)
             st.plotly_chart(fig, use_container_width=True)
 
